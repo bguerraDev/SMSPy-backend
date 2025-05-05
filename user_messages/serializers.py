@@ -7,11 +7,11 @@ from django.utils.timezone import localtime
 User = get_user_model()
 
 class RegisterSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(
+    username = serializers.CharField(
         required=True,
         validators=[UniqueValidator(queryset=User.objects.all())]
     )
-    username = serializers.CharField(
+    email = serializers.EmailField(
         required=True,
         validators=[UniqueValidator(queryset=User.objects.all())]
     )
@@ -20,7 +20,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('username', 'email', 'password')
-    
+
     def create(self, validated_data):
         user = User.objects.create_user(
             username=validated_data['username'],
