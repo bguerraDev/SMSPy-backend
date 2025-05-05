@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: smspy-backend-pre
+    name: smspy_pre_db
     env: python
     buildCommand: "pip install -r requirements.txt"
     startCommand: "gunicorn core.wsgi:application"
