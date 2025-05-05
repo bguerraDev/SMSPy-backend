@@ -27,7 +27,7 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost").split(",")
 
 AUTH_USER_MODEL = 'user_messages.CustomUser'
 
@@ -67,7 +67,7 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
+    "https://smspy-frontend-pre.onrender.com"
 ]
 
 ROOT_URLCONF = 'core.urls'
