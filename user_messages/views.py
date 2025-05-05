@@ -13,8 +13,11 @@ class RegisterView(APIView):
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "Usuario registrado con éxito."}, status=status.HTTP_201_CREATED)
+            try:
+                serializer.save()
+                return Response({"message": "Usuario registrado con éxito."}, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class ProtectedView(APIView):
