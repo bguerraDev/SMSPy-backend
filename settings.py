@@ -1,7 +1,7 @@
 import os
 import sys
 
-DEBUG = False
+DEBUG = True
 RENDER_HOST = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
 
 ALLOWED_HOSTS = ["localhost"]
