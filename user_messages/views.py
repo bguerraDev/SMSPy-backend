@@ -7,6 +7,8 @@ from .serializers import RegisterSerializer, MessageSerializer, User, UserSerial
 from .models import Message
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
+import os
+from django.conf import settings
 
 class RegisterView(APIView):
     def post(self, request):
@@ -80,6 +82,10 @@ class ProfileView(APIView):
         serializer = UserSerializer(user, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             print(request.FILES)
+            print("🔐 AWS_ACCESS_KEY_ID:", os.getenv("AWS_ACCESS_KEY_ID"))
+            print("🔐 AWS_SECRET_ACCESS_KEY:", os.getenv("AWS_SECRET_ACCESS_KEY"))
+            print("🔐 AWS_STORAGE_BUCKET_NAME:", os.getenv("AWS_STORAGE_BUCKET_NAME"))
+            print("💾 DEFAULT_FILE_STORAGE:", settings.DEFAULT_FILE_STORAGE)
             serializer.save()
             return Response({
                 "message": "Perfil actualizado correctamente",
