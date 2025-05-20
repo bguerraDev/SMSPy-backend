@@ -8,7 +8,6 @@ from .models import Message
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 
-
 class RegisterView(APIView):
     def post(self, request):
         print(request.data)
@@ -75,10 +74,13 @@ class ProfileView(APIView):
 
         user = request.user
         # Eliminar avatar anterior si se sube uno nuevo
-        if 'avatar' in request.FILES and user.avatar:
-            user.avatar.delete(save=False)
+        if 'avatar' in request.FILES:
+            if user.avatar:
+                user.avatar.delete(save=False) # Borra el anterior sin guardar aún
+            avatar_file = request.FILES['avatar']
+            user.avatar.save(avatar_file.name, avatar_file, save=True) # Guarda el nuevo avatar en S3
 
-        serializer = UserSerializer(request.user, data=request.data, partial=True, context={'request': request})
+        serializer = UserSerializer(user, data=request.data, partial=True, context={'request': request}) 
         if serializer.is_valid():
             serializer.save()
             return Response({"message": "Perfil actualizado correctamente", "data": serializer.data})
