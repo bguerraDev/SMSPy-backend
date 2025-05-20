@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'user_messages',
     'corsheaders',
+    'storages',
 ]
 
 REST_FRAMEWORK = {
