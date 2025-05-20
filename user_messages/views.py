@@ -7,6 +7,8 @@ from .serializers import RegisterSerializer, MessageSerializer, User, UserSerial
 from .models import Message
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
+from PIL import Image
+from django.core.files.images import ImageFile
 
 class RegisterView(APIView):
     def post(self, request):
@@ -69,21 +71,39 @@ class ProfileView(APIView):
     def get(self, request):
         serializer = UserSerializer(request.user, context={'request': request})
         return Response(serializer.data)
-    
+
     def put(self, request):
         user = request.user
 
-    # Si se ha enviado un nuevo archivo de avatar
-        if 'avatar' in request.FILES:
-            if user.avatar:
-                user.avatar.delete(save=False)  # Borra el anterior sin guardar aún
-            avatar_file = request.FILES['avatar']
-            user.avatar.save(avatar_file.name, avatar_file, save=True)
+        # Validar si se ha enviado un archivo y es válido
+        avatar_file = request.FILES.get('avatar', None)
+
+        if avatar_file:
+            try:
+                # Validación rápida de que es imagen
+                Image.open(avatar_file).verify()
+
+                # Reset file pointer después de PIL check
+                avatar_file.seek(0)
+
+                # Borrar anterior si existe
+                if user.avatar:
+                    user.avatar.delete(save=False)
+
+                # Guardar el archivo en S3
+                user.avatar.save(avatar_file.name, avatar_file, save=True)
+
+            except Exception as e:
+                return Response(
+                    {"error": "Archivo inválido. Asegúrate de subir una imagen válida.", "details": str(e)},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
         serializer = UserSerializer(user, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response({"message": "Perfil actualizado correctamente", "data": serializer.data})
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
