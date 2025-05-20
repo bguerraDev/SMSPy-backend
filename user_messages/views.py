@@ -71,20 +71,21 @@ class ProfileView(APIView):
         return Response(serializer.data)
     
     def put(self, request):
-
         user = request.user
-        # Eliminar avatar anterior si se sube uno nuevo
+
+    # Si se ha enviado un nuevo archivo de avatar
         if 'avatar' in request.FILES:
             if user.avatar:
-                user.avatar.delete(save=False) # Borra el anterior sin guardar aún
+                user.avatar.delete(save=False)  # Borra el anterior sin guardar aún
             avatar_file = request.FILES['avatar']
-            user.avatar.save(avatar_file.name, avatar_file, save=True) # Guarda el nuevo avatar en S3
+            user.avatar.save(avatar_file.name, avatar_file, save=True)
 
-        serializer = UserSerializer(user, data=request.data, partial=True, context={'request': request}) 
+        serializer = UserSerializer(user, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response({"message": "Perfil actualizado correctamente", "data": serializer.data})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class SendMessageView(generics.CreateAPIView):
     serializer_class = MessageSerializer
