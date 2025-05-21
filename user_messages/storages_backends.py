@@ -15,4 +15,4 @@ class MediaStorage(S3Boto3Storage):
     def _guess_content_type(self, name):
         import mimetypes
         content_type, _ = mimetypes.guess_type(name)
-        return content_type
+        return content_type or "application/octet-stream"
