@@ -75,19 +75,24 @@ class ProfileView(APIView):
     def put(self, request):
         user = request.user
 
-        avatar_file = request.FILES.get("avatar")
-        if avatar_file:
-            # Elimina el avatar anterior
+        # 1. Elimina el avatar anterior si se sube uno nuevo
+        if 'avatar' in request.FILES:
             if user.avatar:
                 user.avatar.delete(save=False)
-
-            # Guarda explícitamente el archivo en S3
+            avatar_file = request.FILES['avatar']
+            print(user.avatar.url)
             user.avatar.save(avatar_file.name, avatar_file, save=True)
 
-        # Opcionalmente actualiza otros campos si vienen
-        serializer = UserSerializer(user, data=request.data, partial=True, context={'request': request})
+        # 2. Crea un nuevo dict sin el campo 'avatar' para evitar conflictos
+        update_data = request.data.copy()
+        if 'avatar' in update_data:
+            del update_data['avatar']
+
+        # 3. Actualiza otros campos con el serializer
+        serializer = UserSerializer(user, data=update_data, partial=True, context={'request': request})
         if serializer.is_valid():
-            serializer.save()  # Solo guarda campos simples (no el avatar)
+            print(user.avatar.url)
+            serializer.save()  # Solo guarda otros campos, no el avatar
             return Response({
                 "message": "Perfil actualizado correctamente",
                 "data": serializer.data
