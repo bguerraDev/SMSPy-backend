@@ -7,6 +7,8 @@ from .serializers import RegisterSerializer, MessageSerializer, User, UserSerial
 from .models import Message
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
+import boto3
+from django.conf import settings
 
 class RegisterView(APIView):
     def post(self, request):
@@ -72,17 +74,40 @@ class ProfileView(APIView):
 
     def put(self, request):
         user = request.user
-
         avatar_file = request.FILES.get("avatar")
+
         if avatar_file:
+            # Borrar el anterior avatar si existe
             if user.avatar:
                 user.avatar.delete(save=False)
-            
+
+            # Subida directa a S3 usando boto3
+            s3 = boto3.client(
+                's3',
+                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                region_name=settings.AWS_S3_REGION_NAME
+            )
+
+            s3_key = f"avatars/{avatar_file.name}"
+
+            s3.upload_fileobj(
+                avatar_file.file,
+                settings.AWS_STORAGE_BUCKET_NAME,
+                s3_key,
+                ExtraArgs={
+                    "ContentType": avatar_file.content_type,
+                    "ContentDisposition": "inline",
+                }
+            )
+
+            # Establece manualmente la URL como avatar
             print(">>> Avatar file name:", avatar_file.name)
             print(">>> Avatar content_type:", avatar_file.content_type)
             print(">>> Avatar size:", avatar_file.size)
             print(">>> Storage:", type(user.avatar.storage))
-            user.avatar.save(avatar_file.name, avatar_file, save=True)
+            user.avatar.name = s3_key
+            user.save()
 
         serializer = UserSerializer(user, context={'request': request})
         return Response({
