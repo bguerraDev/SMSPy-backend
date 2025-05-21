@@ -4,7 +4,7 @@ from django.conf import settings
 from user_messages.storages_backends import MediaStorage
 
 class CustomUser(AbstractUser):
-    avatar = models.ImageField(upload_to='avatars/', storage=MediaStorage(), blank=True, null=True)
+    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
 
     def __str__(self):
         return self.username
