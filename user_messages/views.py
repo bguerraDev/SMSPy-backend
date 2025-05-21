@@ -77,26 +77,20 @@ class ProfileView(APIView):
     def put(self, request):
         user = request.user
 
-        if 'avatar' in request.FILES and user.avatar:
-            try:
+        if 'avatar' in request.FILES:
+            # Eliminar avatar anterior si existe
+            if user.avatar:
                 user.avatar.delete(save=False)
-            except ClientError as e:
-                print(f"Error deleting previous avatar: {e}")
 
-        serializer = UserSerializer(user, data=request.data, partial=True, context={'request': request})
-        if serializer.is_valid():
-            print(request.FILES)
-            print("🔐 AWS_ACCESS_KEY_ID:", os.getenv("AWS_ACCESS_KEY_ID"))
-            print("🔐 AWS_SECRET_ACCESS_KEY:", os.getenv("AWS_SECRET_ACCESS_KEY"))
-            print("🔐 AWS_STORAGE_BUCKET_NAME:", os.getenv("AWS_STORAGE_BUCKET_NAME"))
-            print("💾 DEFAULT_FILE_STORAGE:", settings.DEFAULT_FILE_STORAGE)
-            try:
-                serializer.save()
-                return Response({"message": "Perfil actualizado correctamente", "data": serializer.data})
-            except ClientError as e:
-                print(f"Error uploading to S3: {e}")
-                return Response({"error": f"Failed to upload to S3: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            # Guardar nuevo avatar manualmente
+            avatar_file = request.FILES['avatar']
+            user.avatar.save(avatar_file.name, avatar_file, save=True)
+
+        serializer = UserSerializer(user, context={'request': request})
+        return Response({
+            "message": "Perfil actualizado correctamente",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
 
 
 
