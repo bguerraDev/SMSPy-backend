@@ -7,6 +7,7 @@ from .serializers import RegisterSerializer, MessageSerializer, User, UserSerial
 from .models import Message
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
+from django.conf import settings
 
 import os
 
@@ -75,28 +76,20 @@ class ProfileView(APIView):
     def put(self, request):
         user = request.user
 
-        # 1. Elimina el avatar anterior si se sube uno nuevo
-        if 'avatar' in request.FILES:
-            if user.avatar:
-                user.avatar.delete(save=False)
-            avatar_file = request.FILES['avatar']
-            print(user.avatar.url)
-            user.avatar.save(avatar_file.name, avatar_file, save=True)
+        # Si se sube una nueva imagen de avatar, eliminamos la anterior
+        if 'avatar' in request.FILES and user.avatar:
+            user.avatar.delete(save=False)
 
-        # 2. Crea un nuevo dict sin el campo 'avatar' para evitar conflictos
-        update_data = request.data.copy()
-        if 'avatar' in update_data:
-            del update_data['avatar']
-
-        # 3. Actualiza otros campos con el serializer
-        serializer = UserSerializer(user, data=update_data, partial=True, context={'request': request})
+        serializer = UserSerializer(user, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
+            print(request.FILES)
+            print("🔐 AWS_ACCESS_KEY_ID:", os.getenv("AWS_ACCESS_KEY_ID"))
+            print("🔐 AWS_SECRET_ACCESS_KEY:", os.getenv("AWS_SECRET_ACCESS_KEY"))
+            print("🔐 AWS_STORAGE_BUCKET_NAME:", os.getenv("AWS_STORAGE_BUCKET_NAME"))
+            print("💾 DEFAULT_FILE_STORAGE:", settings.DEFAULT_FILE_STORAGE)
             print(user.avatar.url)
-            serializer.save()  # Solo guarda otros campos, no el avatar
-            return Response({
-                "message": "Perfil actualizado correctamente",
-                "data": serializer.data
-            })
+            serializer.save()  # Aquí Django guarda directamente en S3
+            return Response({"message": "Perfil actualizado correctamente", "data": serializer.data})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
