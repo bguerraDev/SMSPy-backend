@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 import boto3
 from django.conf import settings
+from urllib.parse import quote_plus
 
 class RegisterView(APIView):
     def post(self, request):
@@ -77,19 +78,22 @@ class ProfileView(APIView):
         avatar_file = request.FILES.get("avatar")
 
         if avatar_file:
-            # Borrar el anterior avatar si existe
+            # Elimina avatar anterior si existe
             if user.avatar:
                 user.avatar.delete(save=False)
 
-            # Subida directa a S3 usando boto3
+            # Construye nombre único: username_nombrearchivo.png
+            safe_username = quote_plus(user.username)
+            safe_filename = quote_plus(avatar_file.name)
+            s3_key = f"avatars/{safe_username}_{safe_filename}"
+
+            # Subida a S3
             s3 = boto3.client(
                 's3',
                 aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                 aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
                 region_name=settings.AWS_S3_REGION_NAME
             )
-
-            s3_key = f"avatars/{avatar_file.name}"
 
             s3.upload_fileobj(
                 avatar_file.file,
@@ -101,7 +105,7 @@ class ProfileView(APIView):
                 }
             )
 
-            # Establece manualmente la URL como avatar
+            # Asigna nombre manualmente al avatar en el modelo
             print(">>> Avatar file name:", avatar_file.name)
             print(">>> Avatar content_type:", avatar_file.content_type)
             print(">>> Avatar size:", avatar_file.size)
