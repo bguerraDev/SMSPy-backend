@@ -70,6 +70,10 @@ class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
+    def get(self, request):
+        serializer = UserSerializer(request.user, context={'request': request})
+        return Response(serializer.data)
+
     def put(self, request):
         user = request.user
 
