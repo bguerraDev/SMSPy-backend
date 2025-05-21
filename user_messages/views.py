@@ -7,8 +7,10 @@ from .serializers import RegisterSerializer, MessageSerializer, User, UserSerial
 from .models import Message
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
-import os
 from django.conf import settings
+from django.core.files.base import File
+
+import os
 
 class RegisterView(APIView):
     def post(self, request):
@@ -78,6 +80,15 @@ class ProfileView(APIView):
         if 'avatar' in request.FILES:
             if user.avatar:
                 user.avatar.delete(save=False)
+
+            avatar_file = request.FILES['avatar']
+
+            # Forzar content type para evitar errores silenciosos
+            content_type = avatar_file.content_type or 'image/jpeg'
+            file = File(avatar_file)
+            file.content_type = content_type
+
+            user.avatar.save(avatar_file.name, file, save=True)
 
         serializer = UserSerializer(user, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
