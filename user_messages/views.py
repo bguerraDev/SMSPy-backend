@@ -7,8 +7,6 @@ from .serializers import RegisterSerializer, MessageSerializer, User, UserSerial
 from .models import Message
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
-from django.conf import settings
-from botocore.exceptions import ClientError
 
 import os
 
@@ -77,20 +75,24 @@ class ProfileView(APIView):
     def put(self, request):
         user = request.user
 
-        if 'avatar' in request.FILES:
-            # Eliminar avatar anterior si existe
+        avatar_file = request.FILES.get("avatar")
+        if avatar_file:
+            # Elimina el avatar anterior
             if user.avatar:
                 user.avatar.delete(save=False)
 
-            # Guardar nuevo avatar manualmente
-            avatar_file = request.FILES['avatar']
+            # Guarda explícitamente el archivo en S3
             user.avatar.save(avatar_file.name, avatar_file, save=True)
 
-        serializer = UserSerializer(user, context={'request': request})
-        return Response({
-            "message": "Perfil actualizado correctamente",
-            "data": serializer.data
-        }, status=status.HTTP_200_OK)
+        # Opcionalmente actualiza otros campos si vienen
+        serializer = UserSerializer(user, data=request.data, partial=True, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()  # Solo guarda campos simples (no el avatar)
+            return Response({
+                "message": "Perfil actualizado correctamente",
+                "data": serializer.data
+            })
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 
