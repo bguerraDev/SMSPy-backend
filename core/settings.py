@@ -162,7 +162,6 @@ AWS_DEFAULT_ACL = None
 
 AWS_S3_OBJECT_PARAMETERS = {
     'CacheControl': 'max-age=86400',
-    'ACL': 'public-read',
     'ContentDisposition': 'inline'
 }
 
