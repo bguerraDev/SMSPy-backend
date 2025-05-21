@@ -7,8 +7,6 @@ from .serializers import RegisterSerializer, MessageSerializer, User, UserSerial
 from .models import Message
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
-import os
-from django.conf import settings
 
 class RegisterView(APIView):
     def post(self, request):
@@ -71,19 +69,21 @@ class ProfileView(APIView):
     def get(self, request):
         serializer = UserSerializer(request.user, context={'request': request})
         return Response(serializer.data)
-    
+
     def put(self, request):
         user = request.user
 
-        if 'avatar' in request.FILES:
+        avatar_file = request.FILES.get("avatar")
+        if avatar_file:
             if user.avatar:
                 user.avatar.delete(save=False)
-
-            avatar_file = request.FILES['avatar']
             user.avatar.save(avatar_file.name, avatar_file, save=True)
 
         serializer = UserSerializer(user, context={'request': request})
-        return Response({"message": "Perfil actualizado correctamente", "data": serializer.data})
+        return Response({
+            "message": "Perfil actualizado correctamente",
+            "data": serializer.data
+        })
 
 
 
