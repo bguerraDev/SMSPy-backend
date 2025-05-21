@@ -8,7 +8,7 @@ from .models import Message
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 from django.conf import settings
-from django.core.files.base import File
+from botocore.exceptions import ClientError
 
 import os
 
@@ -70,16 +70,14 @@ class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
-    def get(self, request):
-        serializer = UserSerializer(request.user, context={'request': request})
-        return Response(serializer.data)
-
     def put(self, request):
         user = request.user
 
-        # Si se sube una nueva imagen de avatar, eliminamos la anterior
         if 'avatar' in request.FILES and user.avatar:
-            user.avatar.delete(save=False)
+            try:
+                user.avatar.delete(save=False)
+            except ClientError as e:
+                print(f"Error deleting previous avatar: {e}")
 
         serializer = UserSerializer(user, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
@@ -88,8 +86,12 @@ class ProfileView(APIView):
             print("🔐 AWS_SECRET_ACCESS_KEY:", os.getenv("AWS_SECRET_ACCESS_KEY"))
             print("🔐 AWS_STORAGE_BUCKET_NAME:", os.getenv("AWS_STORAGE_BUCKET_NAME"))
             print("💾 DEFAULT_FILE_STORAGE:", settings.DEFAULT_FILE_STORAGE)
-            serializer.save()  # Aquí Django guarda directamente en S3
-            return Response({"message": "Perfil actualizado correctamente", "data": serializer.data})
+            try:
+                serializer.save()
+                return Response({"message": "Perfil actualizado correctamente", "data": serializer.data})
+            except ClientError as e:
+                print(f"Error uploading to S3: {e}")
+                return Response({"error": f"Failed to upload to S3: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
