@@ -77,6 +77,11 @@ class ProfileView(APIView):
         if avatar_file:
             if user.avatar:
                 user.avatar.delete(save=False)
+            
+            print(">>> Avatar file name:", avatar_file.name)
+            print(">>> Avatar content_type:", avatar_file.content_type)
+            print(">>> Avatar size:", avatar_file.size)
+            print(">>> Storage:", type(user.avatar.storage))
             user.avatar.save(avatar_file.name, avatar_file, save=True)
 
         serializer = UserSerializer(user, context={'request': request})
