@@ -160,11 +160,6 @@ MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
 AWS_S3_FILE_OVERWRITE = False
 AWS_DEFAULT_ACL = None
 
-AWS_S3_OBJECT_PARAMETERS = {
-    'CacheControl': 'max-age=86400',
-    'ContentDisposition': 'inline'
-}
-
 AWS_S3_CLIENT_CONFIG = {
     'connect_timeout': 30,
     'read_timeout': 30

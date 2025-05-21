@@ -12,8 +12,3 @@ class MediaStorage(S3Boto3Storage):
             "ContentDisposition": "inline",
             "CacheControl": "max-age=86400",
         }
-
-    def _guess_content_type(self, name):
-        import mimetypes
-        content_type, _ = mimetypes.guess_type(name)
-        return content_type or "application/octet-stream"
