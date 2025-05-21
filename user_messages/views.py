@@ -73,22 +73,13 @@ class ProfileView(APIView):
     def get(self, request):
         serializer = UserSerializer(request.user, context={'request': request})
         return Response(serializer.data)
-    
+
     def put(self, request):
         user = request.user
 
-        if 'avatar' in request.FILES:
-            if user.avatar:
-                user.avatar.delete(save=False)
-
-            avatar_file = request.FILES['avatar']
-
-            # Forzar content type para evitar errores silenciosos
-            content_type = avatar_file.content_type or 'image/jpeg'
-            file = File(avatar_file)
-            file.content_type = content_type
-
-            user.avatar.save(avatar_file.name, file, save=True)
+        # Si se sube una nueva imagen de avatar, eliminamos la anterior
+        if 'avatar' in request.FILES and user.avatar:
+            user.avatar.delete(save=False)
 
         serializer = UserSerializer(user, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
@@ -97,12 +88,10 @@ class ProfileView(APIView):
             print("🔐 AWS_SECRET_ACCESS_KEY:", os.getenv("AWS_SECRET_ACCESS_KEY"))
             print("🔐 AWS_STORAGE_BUCKET_NAME:", os.getenv("AWS_STORAGE_BUCKET_NAME"))
             print("💾 DEFAULT_FILE_STORAGE:", settings.DEFAULT_FILE_STORAGE)
-            serializer.save()
-            return Response({
-                "message": "Perfil actualizado correctamente",
-                "data": serializer.data
-            })
+            serializer.save()  # Aquí Django guarda directamente en S3
+            return Response({"message": "Perfil actualizado correctamente", "data": serializer.data})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 class SendMessageView(generics.CreateAPIView):
