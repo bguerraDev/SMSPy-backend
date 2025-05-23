@@ -10,6 +10,7 @@ from django.db.models import Q
 import boto3
 from django.conf import settings
 from urllib.parse import quote_plus
+import uuid
 
 
 class RegisterView(APIView):
@@ -131,4 +132,38 @@ class SendMessageView(generics.CreateAPIView):
     parser_classes = [MultiPartParser, FormParser]
 
     def perform_create(self, serializer):
-        serializer.save(sender=self.request.user)
+        image_file = self.request.FILES.get("image")
+        image_s3_key = None
+        if image_file:
+            s3 = boto3.client(
+                's3',
+                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                region_name=settings.AWS_S3_REGION_NAME
+            )
+            # 🆔 Generar nombre único
+            ext = image_file.name.split('.')[-1]
+            unique_name = f"{uuid.uuid4().hex}.{ext}"
+            s3_key = f"messages/{unique_name}"
+
+            s3.upload_fileobj(
+                image_file.file,
+                settings.AWS_STORAGE_BUCKET_NAME,
+                s3_key,
+                ExtraArgs={
+                    "ContentType": image_file.content_type,
+                    "ContentDisposition": "inline",
+                }
+            )
+            image_s3_key = s3_key
+            # 📨 Crea el mensaje con la imagen (si la hay)
+            message = serializer.save(
+                sender=self.request.user,
+            )
+            if image_s3_key:
+                message.image.name = image_s3_key
+                message.save()
+        return Response({
+            "message": "Mensaje enviado correctamente",
+            "data": serializer.data
+        })
