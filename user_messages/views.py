@@ -1,10 +1,11 @@
+from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.generics import ListAPIView
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status, generics, permissions
 from .serializers import RegisterSerializer, MessageSerializer, User, UserSerializer
-from .models import Message
+from .models import CustomUser, Message
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 import boto3
@@ -134,6 +135,8 @@ class SendMessageView(generics.CreateAPIView):
     def perform_create(self, serializer):
         image_file = self.request.FILES.get("image")
         image_s3_key = None
+        receiver_id = self.request.data.get("receiver")
+        receiver = get_object_or_404(CustomUser, id=receiver_id)
         if image_file:
             s3 = boto3.client(
                 's3',
@@ -146,7 +149,7 @@ class SendMessageView(generics.CreateAPIView):
             unique_name = f"{uuid.uuid4().hex}.{ext}"
             s3_key = f"messages/{unique_name}"
             s3.upload_fileobj(
-                image_file.file,
+                image_file,
                 settings.AWS_STORAGE_BUCKET_NAME,
                 s3_key,
                 ExtraArgs={
@@ -155,14 +158,15 @@ class SendMessageView(generics.CreateAPIView):
                 }
             )
             image_s3_key = s3_key
-            # 📨 Crea el mensaje con la imagen (si la hay)
+        # 📨 Crea el mensaje con la imagen (si la hay)
         message = serializer.save(
             sender=self.request.user,
+            receiver=receiver,
         )
         if image_s3_key:
             message.image.name = image_s3_key
             message.save()
         return Response({
             "message": "Mensaje enviado correctamente",
-            "data": serializer.data
+            "data": MessageSerializer(message).data
         }, status=status.HTTP_201_CREATED)
