@@ -11,6 +11,7 @@ import boto3
 from django.conf import settings
 from urllib.parse import quote_plus
 
+
 class RegisterView(APIView):
     def post(self, request):
         print(request.data)
@@ -23,12 +24,14 @@ class RegisterView(APIView):
                 return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 class ProtectedView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         return Response({"message": f"Hola, {request.user.username}. Estás autenticado"})
-    
+
+
 class MessageListCreateView(generics.ListCreateAPIView):
     serializer_class = MessageSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -37,9 +40,10 @@ class MessageListCreateView(generics.ListCreateAPIView):
         # Devuelve solo los mensajes en los que el usuario está involucrado
         user = self.request.user
         return Message.objects.filter(Q(sender=user) | Q(receiver=user)).order_by('-sent_at')
-    
+
     def perform_create(self, serializer):
         serializer.save(sender=self.request.user)
+
 
 class UserListView(ListAPIView):
     serializer_class = UserSerializer
@@ -47,7 +51,9 @@ class UserListView(ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        return User.objects.exclude(id=user.id).exclude(username='admin') # TODO ATENCION NOMBRE MODIFICABLE ADMIN
+        # TODO ATENCION NOMBRE MODIFICABLE ADMIN
+        return User.objects.exclude(id=user.id).exclude(username='admin')
+
 
 class ReceivedMessagesView(generics.ListAPIView):
     serializer_class = MessageSerializer
@@ -57,6 +63,7 @@ class ReceivedMessagesView(generics.ListAPIView):
         user = self.request.user
         return Message.objects.filter(receiver=user).order_by('-sent_at')
 
+
 class SentMessagesView(generics.ListAPIView):
     serializer_class = MessageSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -64,6 +71,7 @@ class SentMessagesView(generics.ListAPIView):
     def get_queryset(self):
         user = self.request.user
         return Message.objects.filter(sender=user).order_by('-sent_at')
+
 
 class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -78,15 +86,6 @@ class ProfileView(APIView):
         avatar_file = request.FILES.get("avatar")
 
         if avatar_file:
-            # Elimina avatar anterior si existe
-            if user.avatar:
-                user.avatar.delete(save=False)
-
-            # Construye nombre único: username_nombrearchivo.png
-            safe_username = quote_plus(user.username)
-            safe_filename = quote_plus(avatar_file.name)
-            s3_key = f"avatars/{safe_username}_{safe_filename}"
-
             # Subida a S3
             s3 = boto3.client(
                 's3',
@@ -94,7 +93,18 @@ class ProfileView(APIView):
                 aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
                 region_name=settings.AWS_S3_REGION_NAME
             )
-
+            if user.avatar and user.avatar.name:
+                try:
+                    s3.delete_object(
+                        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+                        Key=user.avatar.name
+                    )
+                except Exception as e:
+                    print(f"⚠️ Error al borrar el avatar anterior: {e}")
+            # Construye nombre único: username_nombrearchivo.png
+            safe_username = quote_plus(user.username)
+            safe_filename = quote_plus(avatar_file.name)
+            s3_key = f"avatars/{safe_username}_{safe_filename}"
             s3.upload_fileobj(
                 avatar_file.file,
                 settings.AWS_STORAGE_BUCKET_NAME,
@@ -104,21 +114,15 @@ class ProfileView(APIView):
                     "ContentDisposition": "inline",
                 }
             )
-
             # Asigna nombre manualmente al avatar en el modelo
             print(">>> Avatar file name:", avatar_file.name)
-            print(">>> Avatar content_type:", avatar_file.content_type)
-            print(">>> Avatar size:", avatar_file.size)
-            print(">>> Storage:", type(user.avatar.storage))
             user.avatar.name = s3_key
             user.save()
-
         serializer = UserSerializer(user, context={'request': request})
         return Response({
             "message": "Perfil actualizado correctamente",
             "data": serializer.data
         })
-
 
 
 class SendMessageView(generics.CreateAPIView):
