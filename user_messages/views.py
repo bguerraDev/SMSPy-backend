@@ -163,7 +163,3 @@ class SendMessageView(generics.CreateAPIView):
             if image_s3_key:
                 message.image.name = image_s3_key
                 message.save()
-        return Response({
-            "message": "Mensaje enviado correctamente",
-            "data": serializer.data
-        })
