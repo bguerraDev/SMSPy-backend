@@ -145,7 +145,6 @@ class SendMessageView(generics.CreateAPIView):
             ext = image_file.name.split('.')[-1]
             unique_name = f"{uuid.uuid4().hex}.{ext}"
             s3_key = f"messages/{unique_name}"
-
             s3.upload_fileobj(
                 image_file.file,
                 settings.AWS_STORAGE_BUCKET_NAME,
@@ -157,9 +156,13 @@ class SendMessageView(generics.CreateAPIView):
             )
             image_s3_key = s3_key
             # 📨 Crea el mensaje con la imagen (si la hay)
-            message = serializer.save(
-                sender=self.request.user,
-            )
-            if image_s3_key:
-                message.image.name = image_s3_key
-                message.save()
+        message = serializer.save(
+            sender=self.request.user,
+        )
+        if image_s3_key:
+            message.image.name = image_s3_key
+            message.save()
+        return Response({
+            "message": "Mensaje enviado correctamente",
+            "data": serializer.data
+        }, status=status.HTTP_201_CREATED)
