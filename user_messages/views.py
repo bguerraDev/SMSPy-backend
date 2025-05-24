@@ -1,4 +1,3 @@
-from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.generics import ListAPIView
@@ -127,29 +126,36 @@ class ProfileView(APIView):
         })
 
 
-class SendMessageView(generics.CreateAPIView):
-    serializer_class = MessageSerializer
+class SendMessageView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
-    def perform_create(self, serializer):
-        image_file = self.request.FILES.get("image")
+    def post(self, request):
+        user = request.user
+        receiver_id = request.data.get('receiver')
+        content = request.data.get('content')
+        image_file = request.FILES.get('image')
+        if not receiver_id or not content:
+            return Response({"error": "Campos 'receiver' y 'content' son obligatorios"}, status=400)
+        try:
+            receiver = CustomUser.objects.get(id=receiver_id)
+        except CustomUser.DoesNotExist:
+            return Response({"error": "El receptor no existe"}, status=404)
         image_s3_key = None
-        receiver_id = self.request.data.get("receiver")
-        receiver = get_object_or_404(CustomUser, id=receiver_id)
         if image_file:
+            # Subida a S3
             s3 = boto3.client(
                 's3',
                 aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                 aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
                 region_name=settings.AWS_S3_REGION_NAME
             )
-            # 🆔 Generar nombre único
+            # 🆔 Generar nombre único: uuid.uuid4().hex
             ext = image_file.name.split('.')[-1]
             unique_name = f"{uuid.uuid4().hex}.{ext}"
             s3_key = f"messages/{unique_name}"
             s3.upload_fileobj(
-                image_file,
+                image_file.file,
                 settings.AWS_STORAGE_BUCKET_NAME,
                 s3_key,
                 ExtraArgs={
@@ -158,15 +164,17 @@ class SendMessageView(generics.CreateAPIView):
                 }
             )
             image_s3_key = s3_key
-        # 📨 Crea el mensaje con la imagen (si la hay)
-        message = serializer.save(
-            sender=self.request.user,
+        # Crear mensaje en la base de datos
+        message = Message.objects.create(
+            sender=user,
             receiver=receiver,
+            content=content,
         )
         if image_s3_key:
-            message.image.name = image_s3_key
+            message.image = image_s3_key
             message.save()
+        serializer = MessageSerializer(message, context={'request': request})
         return Response({
             "message": "Mensaje enviado correctamente",
-            "data": MessageSerializer(message).data
-        }, status=status.HTTP_201_CREATED)
+            "data": serializer.data
+        }, status=201)
