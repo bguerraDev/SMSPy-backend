@@ -4,7 +4,11 @@ services:
     env: python
     buildCommand: |
       pip install -r requirements.txt
-      python manage.py migrate
+      echo "📦 Instalación de dependencias completada"
+      echo "⚙️ Ejecutando showmigrations..."
+      python manage.py showmigrations
+      echo "🚀 Aplicando migraciones..."
+      python manage.py migrate --verbosity 3
     startCommand: gunicorn core.wsgi:application
     envVars:
       - key: DJANGO_SETTINGS_MODULE
